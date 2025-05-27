@@ -1,0 +1,341 @@
+openapi: 3.0.3
+info:
+  title: User Service API
+  version: 1.0.0
+  description: API for managing users and authentication
+
+servers:
+  - url: https://api.example.com/v1
+
+paths:
+  /signup:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupInput'
+      responses:
+        '201':
+          description: User registered
+        '400':
+          description: Invalid input
+
+  /login:
+    post:
+      summary: Log in a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT token
+        '401':
+          description: Invalid credentials
+
+  /users:
+    get:
+      summary: Get list of users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    get:
+      summary: Get a user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+  /scan:
+    post:
+      summary: Scan an image associated with a post using OCR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '200':
+          description: OCR result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResult'
+        '400':
+          description: Invalid input or post ID
+        '404':
+          description: Post/image not found
+      security:
+        - bearerAuth: []
+        
+  /posts:
+    post:
+      summary: Create a new post with text and photos
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PostCreateInput'
+      responses:
+        '201':
+          description: Post created successfully
+        '400':
+          description: Invalid input
+      security:
+        - bearerAuth: []
+
+  /posts/{postId}:
+    get:
+      summary: Get a post with all its content and photos
+      parameters:
+        - in: path
+          name: postId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Post fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+        '404':
+          description: Post not found
+      security:
+        - bearerAuth: []
+  /search:
+    get:
+      summary: Search and list all posts
+      description: Returns a list of posts. In a full implementation, you could filter by keyword, user, etc.
+      responses:
+        '200':
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PostSummary'
+      security:
+        - bearerAuth: []
+  /dictionary/{key}:
+    get:
+      summary: Look up a definition for a scanned keyword
+      parameters:
+        - in: path
+          name: key
+          required: true
+          schema:
+            type: string
+          description: The scanned text to look up
+      responses:
+        '200':
+          description: Definition found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KeyValueEntry'
+        '404':
+          description: No definition found
+
+  /dictionary:
+    post:
+      summary: Add or update a key-value entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KeyValueInput'
+      responses:
+        '200':
+          description: Entry added or updated
+      security:
+        - bearerAuth: []
+
+
+
+    
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    KeyValueInput:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+          description: Description or definition of the key
+
+    KeyValueEntry:
+      type: object
+      properties:
+        value:
+          type: string
+    PostSummary:
+      type: object
+      properties:
+        postId:
+          type: string
+        postTitle:
+          type: string
+        postDescription:
+          type: string
+        postCreationDate:
+          type: string
+          format: date-time
+        thumbnail:
+          type: string
+          format: uri
+          description: Optional preview image URL (e.g., first photo)
+    PostCreateInput:
+      type: object
+      required:
+        - postTitle
+        - postText
+        - postCreationDate
+      properties:
+        postTitle:
+          type: string
+        postDescription:
+          type: string
+        postText:
+          type: string
+        postCreationDate:
+          type: string
+          format: date-time
+        photos:
+          type: array
+          items:
+            type: string
+            format: binary
+          description: One or more photos for the post
+
+    Post:
+      type: object
+      properties:
+        postId:
+          type: string
+        userId:
+          type: string
+        postTitle:
+          type: string
+        postDescription:
+          type: string
+        postText:
+          type: string
+        postCreationDate:
+          type: string
+          format: date-time
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: URLs to the uploaded photos
+
+
+    ScanRequest:
+        type: object
+        required:
+          - postId
+        properties:
+          postId:
+            type: string
+            description: ID of the post to scan
+  
+    ScanResult:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Extracted text from the image
+    User:
+      type: object
+      properties:
+        userId:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        dateJoined:
+          type: string
+          format: date-time
+
+    SignupInput:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    LoginInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
